@@ -7,10 +7,10 @@ clients = []
 clients_lock = threading.Lock()
 
 
-def broadcast_to_subscribers(message, sender_socket):
+def broadcast_to_subscribers(message, sender_socket, topic):
     with clients_lock:
         for client in clients:
-            if client["role"] == "SUBSCRIBER" and client["socket"] != sender_socket:
+            if client["role"] == "SUBSCRIBER" and client["topic"] == topic and client["socket"] != sender_socket:
                 try:
                     client["socket"].sendall(message.encode("utf-8"))
                 except:
@@ -19,8 +19,14 @@ def broadcast_to_subscribers(message, sender_socket):
 
 def handle_client(client_socket, client_address):
     try:
-        role_data = client_socket.recv(1024)
-        role = role_data.decode("utf-8").strip().upper()
+        client_info = client_socket.recv(1024).decode("utf-8").strip()
+        parts = client_info.split(":")
+        if len(parts) != 2:
+            client_socket.sendall("Invalid registration format. Use ROLE:TOPIC".encode("utf-8"))
+            client_socket.close()
+            return
+        role = parts[0].upper()
+        topic = parts[1].upper()
 
         if role not in ["PUBLISHER", "SUBSCRIBER"]:
             client_socket.sendall("Invalid role. Use PUBLISHER or SUBSCRIBER.".encode("utf-8"))
@@ -31,10 +37,11 @@ def handle_client(client_socket, client_address):
             clients.append({
                 "socket": client_socket,
                 "address": client_address,
-                "role": role
+                "role": role,
+                "topic": topic
             })
 
-        print(f"{role} connected from {client_address}")
+        print(f"{role} connected from {client_address} on topic {topic}")
 
         while True:
             data = client_socket.recv(1024)
@@ -52,7 +59,7 @@ def handle_client(client_socket, client_address):
 
             if role == "PUBLISHER":
                 formatted_message = f"[Publisher {client_address}] {message}"
-                broadcast_to_subscribers(formatted_message, client_socket)
+                broadcast_to_subscribers(formatted_message, client_socket, topic)
 
     except ConnectionResetError:
         print(f"Connection lost from {client_address}")
@@ -73,6 +80,7 @@ def main():
     port = int(sys.argv[1])
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind(("0.0.0.0", port))
     server_socket.listen()
 

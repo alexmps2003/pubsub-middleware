@@ -19,14 +19,15 @@ def receive_messages(client_socket):
 
 
 def main():
-    if len(sys.argv) != 4:
-        print("Usage: python3 client.py <SERVER_IP> <PORT> <ROLE>")
-        print("Example: python3 client.py 127.0.0.1 8000 PUBLISHER")
+    if len(sys.argv) != 5:
+        print("Usage: python3 client.py <SERVER_IP> <PORT> <ROLE> <TOPIC>")
+        print("Example: python3 client.py 127.0.0.1 8000 PUBLISHER SPORTS")
         return
 
     server_ip = sys.argv[1]
     port = int(sys.argv[2])
     role = sys.argv[3].upper()
+    topic = sys.argv[4].upper()
 
     if role not in ["PUBLISHER", "SUBSCRIBER"]:
         print("Invalid role. Use PUBLISHER or SUBSCRIBER.")
@@ -35,11 +36,12 @@ def main():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((server_ip, port))
 
-    client_socket.sendall(role.encode("utf-8"))
+    client_socket.sendall(f"{role}:{topic}".encode("utf-8"))
 
     print("TASK 2 CLIENT STARTED")
     print(f"Connected to server at {server_ip}:{port}")
     print(f"Role: {role}")
+    print(f"Topic: {topic}")
     print("Type messages and press Enter.")
     print("Type 'terminate' to disconnect.")
 
